@@ -52,7 +52,7 @@ export default function VooPage({ params }: PageProps) {
   const first    = flight.segments[0];
   const last     = flight.segments[flight.segments.length - 1];
   const airline  = getAirline(first.airlineCode);
-  const bookingLink = buildBookingLink({
+  const bookingLink = flight.bookingLink ?? buildBookingLink({
     airlineCode: first.airlineCode,
     origin: first.origin,
     destination: last.destination,

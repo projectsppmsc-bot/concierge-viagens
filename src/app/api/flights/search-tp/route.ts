@@ -354,9 +354,20 @@ export async function POST(req: NextRequest) {
       if (!existing || f.price < existing.price) seen.set(key, f);
     }
 
-    const deduped = Array.from(seen.values()).sort((a, b) => a.price - b.price);
+    const deduped = Array.from(seen.values());
 
-    const allPrices = deduped.map((f) => f.price);
+    // As buscas por "mais barato do mês" (get_cheapest_tickets, v1/prices/cheap) não
+    // respeitam a data exata pesquisada. Prioriza voos que batem com a data pedida;
+    // só usa datas próximas se não houver nenhum voo na data exata.
+    const requestedDate = body.departureDate ? body.departureDate.slice(0, 10) : "";
+    const exactDateFlights = requestedDate
+      ? deduped.filter((f) => (f.departure_at ?? "").slice(0, 10) === requestedDate)
+      : deduped;
+    const finalFlights = (exactDateFlights.length > 0 ? exactDateFlights : deduped)
+      .sort((a, b) => a.price - b.price);
+    const dateExact = !requestedDate || exactDateFlights.length > 0;
+
+    const allPrices = finalFlights.map((f) => f.price);
     const cabin = (body.cabin ?? "economy") as CabinClass;
     const sp = {
       departureDate: body.departureDate,
@@ -367,9 +378,9 @@ export async function POST(req: NextRequest) {
       destIata: body.destination.toUpperCase(),
     };
 
-    const flights = deduped.map((f, i) => mapTpFlight(f, i, allPrices, sp, marker));
+    const flights = finalFlights.map((f, i) => mapTpFlight(f, i, allPrices, sp, marker));
 
-    return NextResponse.json({ flights });
+    return NextResponse.json({ flights, dateExact });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erro desconhecido";
     return NextResponse.json({ error: message }, { status: 500 });

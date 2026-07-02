@@ -102,6 +102,17 @@ export function SearchProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    // Provedores reais às vezes completam a lista com preços de outras datas do
+    // mês quando a data exata não tem cache — avisa o usuário quando isso ocorre.
+    if (!usedFallback && query.departureDate && results.length > 0) {
+      const requestedDate = query.departureDate.slice(0, 10);
+      const hasExactDate = results.some((f) => f.segments[0]?.departureTime.slice(0, 10) === requestedDate);
+      if (!hasExactDate) {
+        usedFallback = true;
+        fallbackReason = `Não encontramos voos na data exata pesquisada (${requestedDate}). Exibindo os preços mais próximos encontrados para essa rota.`;
+      }
+    }
+
     setState((prev) => ({
       ...prev,
       results,

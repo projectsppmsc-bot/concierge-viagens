@@ -64,9 +64,9 @@ export function FlightCard({
   const last  = flight.segments[flight.segments.length - 1];
   const airline = getAirline(first.airlineCode);
 
-  // bookingLink da API costuma vir incompleto (ex: ?params=SAO1 sem destino/data).
-  // Sempre construímos o link com os dados reais do voo.
-  const externalLink = buildBookingLink({
+  // Prefere o link real devolvido pelo provedor (Travelpayouts já inclui o
+  // deep link específico da oferta). Só reconstrói como último recurso.
+  const externalLink = flight.bookingLink ?? buildBookingLink({
     airlineCode: first.airlineCode,
     origin: searchOrigin ?? first.origin,
     destination: searchDestination ?? last.destination,
