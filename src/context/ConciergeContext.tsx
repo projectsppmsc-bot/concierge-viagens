@@ -8,8 +8,9 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import type { ChatMessage, ConciergeSession, AIProviderConfig } from "@/types/concierge";
+import type { ChatMessage, ConciergeSession, AIProviderConfig, ConciergeSearchContext } from "@/types/concierge";
 import { mockConciergeResponses } from "@/mock/concierge-responses";
+import { useSearchContext } from "@/context/SearchContext";
 
 type ConciergeState = {
   session: ConciergeSession;
@@ -59,6 +60,28 @@ export function ConciergeProvider({ children }: { children: ReactNode }) {
   const [isThinking, setIsThinking] = useState(false);
   const [aiConfig, setAIConfig] = useState<AIProviderConfig>(defaultAIConfig);
   const messageIdRef = useRef(0);
+  const { query, results } = useSearchContext();
+
+  const buildSearchContext = useCallback((): ConciergeSearchContext | undefined => {
+    if (!query) return undefined;
+    return {
+      origin: query.origin,
+      originCity: query.originCity,
+      destination: query.destination,
+      destinationCity: query.destinationCity,
+      departureDate: query.departureDate,
+      returnDate: query.returnDate,
+      adults: query.passengers.adults,
+      cabin: query.cabin,
+      totalResults: results.length,
+      cheapest: results.slice(0, 5).map((f) => ({
+        airline: f.segments[0]?.airlineName ?? "",
+        flightNumber: f.segments[0]?.flightNumber ?? "",
+        priceBRL: f.priceTotal,
+        stops: f.stops,
+      })),
+    };
+  }, [query, results]);
 
   const sendMessage = useCallback(
     async (content: string) => {
@@ -88,7 +111,7 @@ export function ConciergeProvider({ children }: { children: ReactNode }) {
         const res = await fetch("/api/concierge/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ messages: history }),
+          body: JSON.stringify({ messages: history, context: buildSearchContext() }),
         });
 
         let replyText: string;
@@ -134,7 +157,7 @@ export function ConciergeProvider({ children }: { children: ReactNode }) {
         setIsThinking(false);
       }
     },
-    [session.messages]
+    [session.messages, buildSearchContext]
   );
 
   const clearSession = useCallback(() => {

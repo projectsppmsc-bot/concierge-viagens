@@ -33,3 +33,22 @@ export type AIProviderConfig = {
   maxTokens?: number;
   systemPrompt?: string;
 };
+
+/** Resumo da busca atual do usuário, enviado ao Concierge para respostas com contexto. */
+export type ConciergeSearchContext = {
+  origin: string;
+  originCity: string;
+  destination: string;
+  destinationCity: string;
+  departureDate: string;
+  returnDate?: string;
+  adults: number;
+  cabin: string;
+  totalResults: number;
+  cheapest: Array<{
+    airline: string;
+    flightNumber: string;
+    priceBRL: number;
+    stops: number;
+  }>;
+};

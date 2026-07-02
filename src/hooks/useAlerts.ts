@@ -3,11 +3,12 @@
 import { useState, useCallback, useEffect } from "react";
 import type { PriceAlert, AlertStatus } from "@/types/alert";
 import { mockAlerts } from "@/mock/alerts";
+import { useLocalStorageState } from "./useLocalStorageState";
 
 const CHECK_INTERVAL = 15 * 60 * 1000; // 15 min
 
 export function useAlerts() {
-  const [alerts, setAlerts] = useState<PriceAlert[]>(mockAlerts);
+  const [alerts, setAlerts] = useLocalStorageState<PriceAlert[]>("cv:alerts", mockAlerts);
   const [checking, setChecking] = useState(false);
   const [lastChecked, setLastChecked] = useState<string | null>(null);
 
@@ -29,7 +30,7 @@ export function useAlerts() {
     } finally {
       setChecking(false);
     }
-  }, []);
+  }, [setAlerts]);
 
   // Checa ao montar e a cada 15 min
   useEffect(() => {
@@ -40,15 +41,15 @@ export function useAlerts() {
 
   const addAlert = useCallback((alert: PriceAlert) => {
     setAlerts((prev) => [alert, ...prev]);
-  }, []);
+  }, [setAlerts]);
 
   const updateStatus = useCallback((id: string, status: AlertStatus) => {
     setAlerts((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
-  }, []);
+  }, [setAlerts]);
 
   const removeAlert = useCallback((id: string) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
-  }, []);
+  }, [setAlerts]);
 
   return {
     alerts,

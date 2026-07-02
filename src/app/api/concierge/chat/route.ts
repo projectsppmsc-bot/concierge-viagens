@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import type { ConciergeSearchContext } from "@/types/concierge";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -25,6 +26,31 @@ Regras de resposta:
 
 interface Message { role: "user" | "assistant"; content: string; }
 
+function buildContextBlock(context?: ConciergeSearchContext): string {
+  if (!context || !context.origin) return "";
+
+  const lines = [
+    "",
+    "---",
+    "Contexto da busca atual do usuário na plataforma (use isso para responder de forma específica, não genérica):",
+    `- Rota: ${context.originCity} (${context.origin}) → ${context.destinationCity} (${context.destination})`,
+    context.departureDate ? `- Data de ida: ${context.departureDate}` : null,
+    context.returnDate ? `- Data de volta: ${context.returnDate}` : null,
+    `- Passageiros: ${context.adults} adulto(s), classe ${context.cabin}`,
+  ];
+
+  if (context.cheapest.length) {
+    lines.push(`- Resultados encontrados (${context.totalResults} no total, os mais baratos):`);
+    for (const f of context.cheapest) {
+      lines.push(`  • ${f.airline} ${f.flightNumber}: R$ ${f.priceBRL} — ${f.stops === 0 ? "direto" : `${f.stops} escala(s)`}`);
+    }
+  } else {
+    lines.push("- Ainda não há resultados de busca para essa rota.");
+  }
+
+  return lines.filter((l): l is string => l !== null).join("\n");
+}
+
 export async function POST(req: NextRequest) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
@@ -32,7 +58,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json() as { messages: Message[] };
+    const body = await req.json() as { messages: Message[]; context?: ConciergeSearchContext };
     const messages = body.messages ?? [];
 
     if (!messages.length) {
@@ -42,7 +68,7 @@ export async function POST(req: NextRequest) {
     const response = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT + buildContextBlock(body.context),
       messages: messages.map((m) => ({
         role: m.role,
         content: m.content,
